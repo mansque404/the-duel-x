@@ -1,87 +1,265 @@
 @page "/shop"
+@rendermode InteractiveServer
+@using ShopModel = TheDuelX.Shared.Models.Shop
+@using TheDuelX.Shared.Models
+@using TheDuelX.Data
+@using Microsoft.EntityFrameworkCore
+@inject GameDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Loja - The Duel X</PageTitle>
 
 <div class="shop-container">
-    <h1>🛒 Loja de Cartas</h1>
+    <h1 class="shop-title">🏪 Loja de Cartas</h1>
     
-    <div class="player-currency">
-        <div class="currency-display">
-            <span class="currency-icon">💰</span>
-            <span class="currency-amount">1,250</span>
-            <span class="currency-label">Moedas</span>
+    <div class="player-info">
+        <div class="coins">💰 @playerCoins Moedas</div>
+        <div class="player-selector">
+            <label>Jogador:</label>
+            <select @onchange="OnPlayerChanged">
+                <option value="0">Selecionar Jogador</option>
+                @foreach (var player in players)
+                {
+                    <option value="@player.Id">@player.Username</option>
+                }
+            </select>
         </div>
     </div>
-    
-    <div class="shop-items">
-        <div class="shop-item">
-            <div class="item-image">📦</div>
-            <h3>Pacote Iniciante</h3>
-            <p class="item-description">Contém 5 cartas comuns e 1 incomum garantida.</p>
-            <div class="item-contents">
-                <span class="content-tag common">5x Comuns</span>
-                <span class="content-tag uncommon">1x Incomum</span>
-            </div>
-            <div class="item-price">
-                <span class="price">100</span>
-                <span class="currency">💰</span>
-            </div>
-            <button class="btn btn-primary">Comprar</button>
+
+    @if (currentPlayer != null)
+    {
+        <div class="shop-items">
+            @foreach (var shop in shops)
+            {
+                <div class="shop-section">
+                    <h2>@shop.Name</h2>
+                    <p>@shop.Description</p>
+                    
+                    <div class="items-grid">
+                        @foreach (var item in shop.Items)
+                        {
+                            <div class="shop-item">
+                                <div class="item-header">
+                                    <h3>@item.Name</h3>
+                                    <div class="price">💰 @item.Price</div>
+                                </div>
+                                <p class="item-description">@item.Description</p>
+                                
+                                <div class="purchase-section">
+                                    <input type="number" min="1" max="10" @bind="purchaseQuantities[item.Id]" class="quantity-input" />
+                                    <button class="btn btn-primary" 
+                                            @onclick="() => PurchaseItem(item.Id)" 
+                                            disabled="@(playerCoins < item.Price * purchaseQuantities.GetValueOrDefault(item.Id, 1))">
+                                        Comprar
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
         </div>
-        
-        <div class="shop-item featured">
-            <div class="featured-badge">🌟 Destaque</div>
-            <div class="item-image">🎁</div>
-            <h3>Pacote Premium</h3>
-            <p class="item-description">Mix exclusivo com chance de cartas lendárias!</p>
-            <div class="item-contents">
-                <span class="content-tag common">3x Comuns</span>
-                <span class="content-tag uncommon">2x Incomuns</span>
-                <span class="content-tag rare">1x Rara+</span>
-            </div>
-            <div class="item-price">
-                <span class="price">250</span>
-                <span class="currency">💰</span>
-            </div>
-            <button class="btn btn-accent">Comprar</button>
+    }
+    else
+    {
+        <div class="no-player">
+            <p>Selecione um jogador para acessar a loja</p>
+            <button class="btn btn-secondary" @onclick="CreateTestPlayer">Criar Jogador de Teste</button>
         </div>
-        
-        <div class="shop-item">
-            <div class="item-image">⚡</div>
-            <h3>Pacote Energia</h3>
-            <p class="item-description">Focado em cartas de magia e efeitos especiais.</p>
-            <div class="item-contents">
-                <span class="content-tag spell">4x Magias</span>
-                <span class="content-tag uncommon">2x Incomuns</span>
-            </div>
-            <div class="item-price">
-                <span class="price">180</span>
-                <span class="currency">💰</span>
-            </div>
-            <button class="btn btn-primary">Comprar</button>
+    }
+
+    @if (recentPurchases.Any())
+    {
+        <div class="recent-purchases">
+            <h3>Compras Recentes</h3>
+            @foreach (var purchase in recentPurchases)
+            {
+                <div class="purchase-item">
+                    <div class="purchase-header">
+                        <span>@purchase.ShopItem.Name</span>
+                        <span>-@purchase.TotalPrice 💰</span>
+                    </div>
+                    <div class="received-cards">
+                        @foreach (var card in purchase.ReceivedCards)
+                        {
+                            <span class="received-card">@card.Card.Name x@card.Quantity</span>
+                        }
+                    </div>
+                </div>
+            }
         </div>
-        
-        <div class="shop-item legendary">
-            <div class="legendary-glow"></div>
-            <div class="item-image">👑</div>
-            <h3>Pacote Lendário</h3>
-            <p class="item-description">Garantia de pelo menos 1 carta lendária!</p>
-            <div class="item-contents">
-                <span class="content-tag rare">3x Raras</span>
-                <span class="content-tag epic">2x Épicas</span>
-                <span class="content-tag legendary">1x Lendária</span>
-            </div>
-            <div class="item-price">
-                <span class="price">500</span>
-                <span class="currency">💰</span>
-            </div>
-            <button class="btn btn-legendary">Comprar</button>
-        </div>
-    </div>
-    
-    <div class="action-section">
-        <a href="/collection" class="btn btn-secondary">📚 Ver Coleção</a>
-        <a href="/game" class="btn btn-primary">🎮 Jogar com Novas Cartas</a>
-    </div>
+    }
 </div>
+
+@code {
+    private List<ShopModel> shops = new();
+    private List<Player> players = new();
+    private Player? currentPlayer;
+    private int playerCoins = 0;
+    private Dictionary<int, int> purchaseQuantities = new();
+    private List<Purchase> recentPurchases = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        shops = await DbContext.Shops
+            .Include(s => s.Items)
+            .ThenInclude(i => i.Cards)
+            .ThenInclude(c => c.Card)
+            .Where(s => s.IsActive)
+            .ToListAsync();
+
+        players = await DbContext.Players.ToListAsync();
+
+        foreach (var shop in shops)
+        {
+            foreach (var item in shop.Items)
+            {
+                if (!purchaseQuantities.ContainsKey(item.Id))
+                {
+                    purchaseQuantities[item.Id] = 1;
+                }
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task OnPlayerChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int playerId) && playerId > 0)
+        {
+            currentPlayer = await DbContext.Players.FindAsync(playerId);
+            playerCoins = currentPlayer?.Coins ?? 0;
+            await LoadRecentPurchases(playerId);
+        }
+        else
+        {
+            currentPlayer = null;
+            playerCoins = 0;
+            recentPurchases.Clear();
+        }
+        StateHasChanged();
+    }
+
+    private async Task LoadRecentPurchases(int playerId)
+    {
+        recentPurchases = await DbContext.Purchases
+            .Include(p => p.ShopItem)
+            .Include(p => p.ReceivedCards)
+            .ThenInclude(rc => rc.Card)
+            .Where(p => p.PlayerId == playerId)
+            .OrderByDescending(p => p.PurchasedAt)
+            .Take(5)
+            .ToListAsync();
+    }
+
+    private async Task PurchaseItem(int shopItemId)
+    {
+        if (currentPlayer == null) return;
+
+        var shopItem = await DbContext.ShopItems.FirstOrDefaultAsync(si => si.Id == shopItemId);
+        if (shopItem == null) return;
+
+        var quantity = purchaseQuantities.GetValueOrDefault(shopItemId, 1);
+        var totalPrice = shopItem.Price * quantity;
+
+        if (currentPlayer.Coins < totalPrice)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Moedas insuficientes!");
+            return;
+        }
+
+        var purchase = new Purchase
+        {
+            PlayerId = currentPlayer.Id,
+            ShopItemId = shopItemId,
+            Quantity = quantity,
+            TotalPrice = totalPrice,
+            PurchasedAt = DateTime.UtcNow,
+            ReceivedCards = new List<PurchasedCard>()
+        };
+
+        var allCards = await DbContext.Cards.ToListAsync();
+        var random = new Random();
+        var cardsToGive = quantity * 3; 
+
+        var cardCounts = new Dictionary<int, int>();
+
+        for (int i = 0; i < cardsToGive; i++)
+        {
+            var randomCard = allCards[random.Next(allCards.Count)];
+            
+            purchase.ReceivedCards.Add(new PurchasedCard
+            {
+                CardId = randomCard.Id,
+                Quantity = 1
+            });
+
+            if (cardCounts.ContainsKey(randomCard.Id))
+            {
+                cardCounts[randomCard.Id]++;
+            }
+            else
+            {
+                cardCounts[randomCard.Id] = 1;
+            }
+        }
+
+        foreach (var cardCount in cardCounts)
+        {
+            var playerCard = await DbContext.PlayerCards
+                .FirstOrDefaultAsync(pc => pc.PlayerId == currentPlayer.Id && pc.CardId == cardCount.Key);
+
+            if (playerCard != null)
+            {
+                playerCard.Quantity += cardCount.Value;
+            }
+            else
+            {
+                DbContext.PlayerCards.Add(new PlayerCard
+                {
+                    PlayerId = currentPlayer.Id,
+                    CardId = cardCount.Key,
+                    Quantity = cardCount.Value,
+                    AcquiredAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        currentPlayer.Coins -= totalPrice;
+        playerCoins = currentPlayer.Coins;
+
+        DbContext.Purchases.Add(purchase);
+        await DbContext.SaveChangesAsync();
+
+        await JSRuntime.InvokeVoidAsync("alert", $"Compra realizada! Você recebeu {cardsToGive} cartas!");
+        
+        await LoadRecentPurchases(currentPlayer.Id);
+        StateHasChanged();
+    }
+
+    private async Task CreateTestPlayer()
+    {
+        var player = new Player
+        {
+            Username = $"Jogador{DateTime.Now.Ticks % 10000}",
+            Email = $"player{DateTime.Now.Ticks % 10000}@test.com",
+            Coins = 1000,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        DbContext.Players.Add(player);
+        await DbContext.SaveChangesAsync();
+
+        await LoadData();
+        await JSRuntime.InvokeVoidAsync("alert", $"Jogador {player.Username} criado com 1000 moedas!");
+    }
+}
 
 <style>
     .shop-container {

@@ -1,6 +1,11 @@
 using TheDuelX.BlazorApp.Components;
+using TheDuelX.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<GameDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
