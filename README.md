@@ -58,7 +58,7 @@ TheDuelX/
 ## Desenvolvimento
 
 ### Pré-requisitos
-- .NET 8.0 SDK
+- .NET 9.0 SDK
 - SQL Server (LocalDB para desenvolvimento)
 - Visual Studio 2022 ou VS Code
 
