@@ -1,0 +1,31 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+#
+# <footer>
+
+# Types:
+# feat:     nova funcionalidade
+# fix:      correção de bug
+# docs:     mudanças na documentação
+# style:    mudanças que não afetam o significado do código (espaço em branco, formatação, etc)
+# refactor: mudança de código que não corrige bug nem adiciona funcionalidade
+# perf:     mudança de código que melhora performance
+# test:     adicionar ou corrigir testes
+# chore:    mudanças no processo de build ou ferramentas auxiliares
+#
+# Scope (opcional):
+# ui, api, game, database, config, etc.
+#
+# Subject:
+# - use imperativo, tempo presente: "change" não "changed" nem "changes"
+# - não capitalize primeira letra
+# - sem ponto (.) no final
+#
+# Body (opcional):
+# - use imperativo, tempo presente
+# - inclua motivação para mudança e contraste com comportamento anterior
+#
+# Footer (opcional):
+# - referencie issues: "closes #123", "fixes #456"
+# - breaking changes: "BREAKING CHANGE: describe what changed"
