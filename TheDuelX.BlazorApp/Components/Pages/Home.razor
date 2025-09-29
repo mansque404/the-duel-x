@@ -1,0 +1,150 @@
+﻿@page "/"
+
+<PageTitle>The Duel X - Home</PageTitle>
+
+<div class="hero-section">
+    <h1>⚔️ The Duel X</h1>
+    <p class="subtitle">Um Trading Card Game Simplificado</p>
+    
+    <div class="game-features">
+        <div class="feature">
+            <h3>🃏 Coleção de Cartas</h3>
+            <p>Monte sua coleção única de cartas mágicas e criaturas poderosas</p>
+        </div>
+        
+        <div class="feature">
+            <h3>⚔️ Batalhas Épicas</h3>
+            <p>Duela contra oponentes em combates estratégicos baseados em turnos</p>
+        </div>
+        
+        <div class="feature">
+            <h3>🏪 Loja de Cartas</h3>
+            <p>Compre pacotes de cartas e expanda sua coleção</p>
+        </div>
+    </div>
+    
+    <div class="action-buttons">
+        <a href="/game" class="btn btn-primary btn-large">🎮 Iniciar Jogo</a>
+        <a href="/collection" class="btn btn-secondary btn-large">📚 Ver Coleção</a>
+        <a href="/shop" class="btn btn-accent btn-large">🛒 Loja</a>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        text-align: center;
+        padding: 60px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        min-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    h1 {
+        font-size: 4rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .subtitle {
+        font-size: 1.5rem;
+        margin-bottom: 50px;
+        opacity: 0.9;
+    }
+
+    .game-features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 30px;
+        margin: 50px 0;
+        max-width: 1000px;
+        width: 100%;
+    }
+
+    .feature {
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 15px;
+        padding: 30px 20px;
+        transition: transform 0.3s ease;
+    }
+
+    .feature:hover {
+        transform: translateY(-5px);
+    }
+
+    .feature h3 {
+        font-size: 1.3rem;
+        margin-bottom: 15px;
+        color: #FFD700;
+    }
+
+    .feature p {
+        font-size: 1rem;
+        line-height: 1.5;
+        opacity: 0.9;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 40px;
+    }
+
+    .btn {
+        padding: 15px 30px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: inline-block;
+    }
+
+    .btn-large {
+        padding: 18px 40px;
+        font-size: 1.2rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(45deg, #FF6B6B, #FF8E53);
+        color: white;
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+    }
+
+    .btn-secondary {
+        background: linear-gradient(45deg, #4ECDC4, #44A08D);
+        color: white;
+        box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
+    }
+
+    .btn-accent {
+        background: linear-gradient(45deg, #FFE066, #FF6B35);
+        color: #333;
+        box-shadow: 0 4px 15px rgba(255, 224, 102, 0.3);
+    }
+
+    .btn-accent:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 224, 102, 0.4);
+    }
+</style>

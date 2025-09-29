@@ -1,0 +1,6 @@
+@TheDuelX.WebApi_HostAddress = http://localhost:5091
+
+GET {{TheDuelX.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

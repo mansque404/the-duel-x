@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+option csharp_namespace = "TheDuelX.GrpcService";
+
+package theduex;
+
+// Serviço de jogo
+service GameService {
+  rpc CreateGame (CreateGameRequest) returns (CreateGameResponse);
+  rpc JoinGame (JoinGameRequest) returns (JoinGameResponse);
+  rpc PlayCard (PlayCardRequest) returns (GameActionResponse);
+  rpc Attack (AttackRequest) returns (GameActionResponse);
+  rpc EndTurn (EndTurnRequest) returns (GameActionResponse);
+  rpc GetGameState (GetGameStateRequest) returns (GameStateResponse);
+  rpc SubscribeToGameUpdates (GameUpdatesRequest) returns (stream GameUpdateMessage);
+}
+
+// Mensagens de requisição
+message CreateGameRequest {
+  int32 player_id = 1;
+  repeated int32 deck_card_ids = 2;
+}
+
+message JoinGameRequest {
+  string game_id = 1;
+  int32 player_id = 2;
+  repeated int32 deck_card_ids = 3;
+}
+
+message PlayCardRequest {
+  string game_id = 1;
+  int32 player_id = 2;
+  int32 card_id = 3;
+  optional int32 target_id = 4;
+  optional int32 position = 5;
+}
+
+message AttackRequest {
+  string game_id = 1;
+  int32 player_id = 2;
+  int32 attacker_id = 3;
+  int32 target_id = 4;
+}
+
+message EndTurnRequest {
+  string game_id = 1;
+  int32 player_id = 2;
+}
+
+message GetGameStateRequest {
+  string game_id = 1;
+  int32 player_id = 2;
+}
+
+message GameUpdatesRequest {
+  string game_id = 1;
+  int32 player_id = 2;
+}
+
+// Mensagens de resposta
+message CreateGameResponse {
+  string game_id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message JoinGameResponse {
+  bool success = 1;
+  string message = 2;
+  GameState game_state = 3;
+}
+
+message GameActionResponse {
+  bool success = 1;
+  string message = 2;
+  GameState updated_state = 3;
+}
+
+message GameStateResponse {
+  GameState game_state = 1;
+}
+
+message GameUpdateMessage {
+  GameUpdateType update_type = 1;
+  string message = 2;
+  GameState game_state = 3;
+  int32 affected_player_id = 4;
+}
+
+// Mensagens de dados
+message GameState {
+  string game_id = 1;
+  int32 player1_id = 2;
+  int32 player2_id = 3;
+  int32 current_player_id = 4;
+  int32 turn_number = 5;
+  GameStatus status = 6;
+  optional int32 winner_id = 7;
+  PlayerBoard player1_board = 8;
+  PlayerBoard player2_board = 9;
+}
+
+message PlayerBoard {
+  int32 player_id = 1;
+  int32 health = 2;
+  int32 mana = 3;
+  int32 max_mana = 4;
+  repeated Card hand = 5;
+  repeated Card field = 6;
+  int32 deck_size = 7;
+  int32 graveyard_size = 8;
+}
+
+message Card {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  int32 mana_cost = 4;
+  int32 attack = 5;
+  int32 health = 6;
+  CardType type = 7;
+  CardRarity rarity = 8;
+  string image_url = 9;
+}
+
+// Enums
+enum GameStatus {
+  WAITING_FOR_PLAYERS = 0;
+  IN_PROGRESS = 1;
+  ENDED = 2;
+  DISCONNECTED = 3;
+}
+
+enum CardType {
+  CREATURE = 0;
+  SPELL = 1;
+  ARTIFACT = 2;
+}
+
+enum CardRarity {
+  COMMON = 0;
+  UNCOMMON = 1;
+  RARE = 2;
+  EPIC = 3;
+  LEGENDARY = 4;
+}
+
+enum GameUpdateType {
+  CARD_PLAYED = 0;
+  ATTACK_PERFORMED = 1;
+  TURN_ENDED = 2;
+  GAME_ENDED = 3;
+  PLAYER_JOINED = 4;
+  PLAYER_DISCONNECTED = 5;
+}

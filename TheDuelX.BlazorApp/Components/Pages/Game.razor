@@ -1,0 +1,719 @@
+@page "/game"
+@rendermode InteractiveServer
+@using TheDuelX.Shared.Models
+@inject IJSRuntime JSRuntime
+
+<div class="game-container">
+    <div class="opponent-area">
+        <div class="player-info">
+            <div class="health" @onclick="async () => await AttackOpponentDirectly()">❤️ @opponentHealth</div>
+            <div class="mana">💎 @opponentMana/@opponentMaxMana</div>
+        </div>
+
+        <div class="battlefield opponent-field">
+            <div class="mana">💎 @opponentMana/@opponentMaxMana</div>
+            <div class="deck-size">🂠 @opponentDeckSize</div>
+        </div>
+
+        <div class="battlefield opponent-field">
+            @if (opponentField != null && opponentField.Any())
+            {
+                @foreach (var card in opponentField)
+                {
+                    <div class="card creature-card opponent-card" @onclick="async () => await SelectTarget(card.Id)">
+                        <div class="card-mana">@card.ManaCost</div>
+                        <div class="card-name">@card.Name</div>
+                        <div class="card-stats">@card.Attack/@card.Health</div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-field">Campo vazio</div>
+            }
+        </div>
+    </div>
+
+    <div class="center-area">
+        <div class="turn-indicator">
+            @if (isMyTurn)
+            {
+                <div class="game-instructions">
+                    @if (selectedAttacker != null)
+                    {
+                        <div class="instruction">🎯 Clique em uma criatura inimiga ou na vida do oponente para atacar!</div>
+                    }
+                    else
+                    {
+                        <div class="instruction">🃏 Clique nas cartas da sua mão para jogá-las ou selecione criaturas para atacar</div>
+                    }
+                </div>
+                <button class="btn btn-primary" @onclick="async () => await EndTurn()">🔄 Finalizar Turno</button>
+            }
+            else
+            {
+                <div class="waiting">⏳ Aguardando o oponente...</div>
+            }
+        </div>
+        
+        <div class="game-log">
+            @foreach (var message in gameMessages)
+            {
+                <div class="log-message">@message</div>
+            }
+        </div>
+    </div>
+
+    <div class="player-area">
+        <div class="battlefield player-field">
+            @if (playerField != null && playerField.Any())
+            {
+                @foreach (var card in playerField)
+                {
+                    <div class="card creature-card player-card @(selectedAttacker == card.Id ? "selected" : "")" 
+                         @onclick="() => SelectAttacker(card.Id)">
+                        <div class="card-mana">@card.ManaCost</div>
+                        <div class="card-name">@card.Name</div>
+                        <div class="card-stats">@card.Attack/@card.Health</div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-field">Campo vazio</div>
+            }
+        </div>
+        
+        <div class="player-info">
+            <div class="health">❤️ @playerHealth</div>
+            <div class="mana">💎 @playerMana/@playerMaxMana</div>
+            <div class="deck-size">🂠 @playerDeckSize</div>
+        </div>
+
+        <div class="hand">
+            @if (playerHand != null && playerHand.Any())
+            {
+                @foreach (var card in playerHand)
+                {
+                    <div class="card hand-card @(playerMana >= card.ManaCost ? "" : "unplayable")" 
+                         @onclick="async () => await PlayCard(card.Id)">
+                        <div class="card-mana">@card.ManaCost</div>
+                        <div class="card-name">@card.Name</div>
+                        <div class="card-description">@card.Description</div>
+                        @if (card.Type == CardType.Creature)
+                        {
+                            <div class="card-stats">@card.Attack/@card.Health</div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-hand">Sem cartas na mão</div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string gameId = "test-game";
+    private int playerId = 1;
+    private bool isMyTurn = true;
+    
+    private int playerHealth = 30;
+    private int playerMana = 3;
+    private int playerMaxMana = 3;
+    private int playerDeckSize = 27;
+    private List<Card> playerHand = new();
+    private List<Card> playerField = new();
+    
+    private int opponentHealth = 30;
+    private int opponentMana = 3;
+    private int opponentMaxMana = 3;
+    private int opponentDeckSize = 27;
+    private List<Card> opponentField = new();
+    
+    private int? selectedAttacker = null;
+    private int? selectedTarget = null;
+    private List<string> gameMessages = new() { "Jogo iniciado! Sua vez de jogar." };
+
+    protected override Task OnInitializedAsync()
+    {
+        playerHand = new List<Card>
+        {
+            new Card { Id = 1, Name = "Guerreiro Iniciante", Description = "Um guerreiro jovem", ManaCost = 1, Attack = 2, Health = 1, Type = CardType.Creature },
+            new Card { Id = 2, Name = "Mago das Chamas", Description = "Conjura fogo", ManaCost = 2, Attack = 3, Health = 2, Type = CardType.Creature },
+            new Card { Id = 3, Name = "Bola de Fogo", Description = "3 de dano", ManaCost = 3, Attack = 0, Health = 0, Type = CardType.Spell }
+        };
+        
+        opponentField = new List<Card>
+        {
+            new Card { Id = 10, Name = "Goblin", Description = "Criatura pequena", ManaCost = 1, Attack = 1, Health = 1, Type = CardType.Creature }
+        };
+
+        return Task.CompletedTask;
+    }
+
+    private async Task PlayCard(int cardId)
+    {
+        Console.WriteLine($"DEBUG CONSOLE: PlayCard chamado com ID {cardId}");
+        @* AddMessage($"DEBUG: Tentando jogar carta {cardId}, é meu turno: {isMyTurn}"); *@
+        
+        if (!isMyTurn) 
+        {
+            AddMessage("Não é seu turno!");
+            return;
+        }
+        
+        var card = playerHand.FirstOrDefault(c => c.Id == cardId);
+        if (card == null)
+        {
+            @* AddMessage($"DEBUG: Carta {cardId} não encontrada na mão!"); *@
+            return;
+        }
+        
+        @* AddMessage($"DEBUG: Carta encontrada: {card.Name}, custo: {card.ManaCost}, mana disponível: {playerMana}"); *@
+        
+        if (playerMana < card.ManaCost)
+        {
+            AddMessage($"Mana insuficiente! Precisa de {card.ManaCost}, você tem {playerMana}");
+            return;
+        }
+        
+        playerHand.Remove(card);
+        playerMana -= card.ManaCost;
+        
+        if (card.Type == CardType.Creature)
+        {
+            playerField.Add(card);
+            AddMessage($"✅ {card.Name} jogado no campo! (Mana restante: {playerMana})");
+        }
+        else if (card.Type == CardType.Spell)
+        {
+            AddMessage($"✨ {card.Name} conjurado! (Mana restante: {playerMana})");
+        }
+        
+        StateHasChanged();
+    }
+
+    private void SelectAttacker(int cardId)
+    {
+        Console.WriteLine($"DEBUG CONSOLE: SelectAttacker chamado com ID {cardId}");
+        @* AddMessage($"DEBUG: Selecionando atacante {cardId}, é meu turno: {isMyTurn}"); *@
+        
+        if (!isMyTurn) 
+        {
+            AddMessage("Não é seu turno para atacar!");
+            return;
+        }
+        
+        selectedAttacker = selectedAttacker == cardId ? null : cardId;
+        selectedTarget = null;
+        
+        if (selectedAttacker != null)
+        {
+            var attackerCard = playerField.FirstOrDefault(c => c.Id == selectedAttacker);
+            AddMessage($"🗡️ {attackerCard?.Name} selecionado para atacar! Clique no alvo.");
+        }
+        else
+        {
+            AddMessage("Seleção de atacante cancelada.");
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task SelectTarget(int targetId)
+    {
+        @* AddMessage($"DEBUG: Selecionando alvo {targetId}, atacante selecionado: {selectedAttacker}"); *@
+        
+        if (!isMyTurn || selectedAttacker == null) 
+        {
+            AddMessage("Selecione primeiro uma criatura para atacar!");
+            return;
+        }
+        
+        selectedTarget = targetId;
+        AddMessage($"🎯 Alvo selecionado! Executando ataque...");
+        await PerformAttack();
+    }
+
+    private async Task AttackOpponentDirectly()
+    {
+        if (!isMyTurn || selectedAttacker == null) 
+        {
+            AddMessage("Selecione primeiro uma criatura para atacar!");
+            return;
+        }
+        
+        selectedTarget = null;
+        AddMessage($"🎯 Atacando oponente diretamente!");
+        await PerformAttack();
+    }
+
+    private Task PerformAttack()
+    {
+        if (selectedAttacker == null)
+        {
+            AddMessage("Erro: Nenhum atacante selecionado!");
+            return Task.CompletedTask;
+        }
+        
+        var attacker = playerField.FirstOrDefault(c => c.Id == selectedAttacker);
+        if (attacker == null)
+        {
+            AddMessage("Erro: Atacante não encontrado no campo!");
+            return Task.CompletedTask;
+        }
+        
+        if (selectedTarget == null)
+        {
+            // Ataque direto ao oponente
+            opponentHealth -= attacker.Attack;
+            AddMessage($"💥 {attacker.Name} atacou diretamente! Oponente perdeu {attacker.Attack} vida (Vida restante: {opponentHealth})");
+        }
+        else
+        {
+            var target = opponentField.FirstOrDefault(c => c.Id == selectedTarget);
+            if (target != null)
+            {
+                AddMessage($"⚔️ {attacker.Name} (ATK:{attacker.Attack}) atacou {target.Name} (ATK:{target.Attack})!");
+                
+                var attackerDamage = target.Attack;
+                var defenderDamage = attacker.Attack;
+                
+                attacker.Health -= attackerDamage;
+                target.Health -= defenderDamage;
+                
+                AddMessage($"💥 {attacker.Name} recebeu {attackerDamage} de dano");
+                AddMessage($"💥 {target.Name} recebeu {defenderDamage} de dano");
+                
+                // Remove criaturas mortas
+                if (attacker.Health <= 0)
+                {
+                    playerField.Remove(attacker);
+                    AddMessage($"💀 {attacker.Name} foi destruído!");
+                }
+                
+                if (target.Health <= 0)
+                {
+                    opponentField.Remove(target);
+                    AddMessage($"💀 {target.Name} foi destruído!");
+                }
+            }
+            else
+            {
+                AddMessage("Erro: Alvo não encontrado!");
+            }
+        }
+        
+        selectedAttacker = null;
+        selectedTarget = null;
+        
+        // Verifica condições de vitória
+        if (opponentHealth <= 0)
+        {
+            AddMessage("🎉 VITÓRIA! Você venceu o duelo!");
+            isMyTurn = false; // Para o jogo
+        }
+        
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task EndTurn()
+    {
+        Console.WriteLine("DEBUG CONSOLE: EndTurn chamado");
+        @* AddMessage(message: "DEBUG: Tentando finalizar turno"); *@
+        
+        if (!isMyTurn) 
+        {
+            AddMessage("Não é seu turno!");
+            return;
+        }
+        
+        AddMessage("🔄 Finalizando turno...");
+        isMyTurn = false;
+        selectedAttacker = null;
+        selectedTarget = null;
+        
+        StateHasChanged();
+        
+        AddMessage("🤖 Turno do oponente...");
+        await Task.Delay(1500);
+        
+        if (opponentField.Any() && playerField.Any())
+        {
+            var opponentAttacker = opponentField.First();
+            var playerTarget = playerField.First();
+            
+            AddMessage($"🤖 Oponente: {opponentAttacker.Name} ataca {playerTarget.Name}!");
+            
+            opponentAttacker.Health -= playerTarget.Attack;
+            playerTarget.Health -= opponentAttacker.Attack;
+            
+            if (opponentAttacker.Health <= 0)
+            {
+                opponentField.Remove(opponentAttacker);
+                AddMessage($"💀 {opponentAttacker.Name} foi destruído!");
+            }
+            
+            if (playerTarget.Health <= 0)
+            {
+                playerField.Remove(playerTarget);
+                AddMessage($"💀 {playerTarget.Name} foi destruído!");
+            }
+        }
+        else if (opponentField.Any() && !playerField.Any())
+        {
+            var attacker = opponentField.First();
+            playerHealth -= attacker.Attack;
+            AddMessage($"💥 Oponente ataca diretamente! Você perdeu {attacker.Attack} vida (Vida: {playerHealth})");
+        }
+        
+        await Task.Delay(1000);
+        
+        if (playerHealth <= 0)
+        {
+            AddMessage("💀 DERROTA! Você foi derrotado!");
+            return;
+        }
+        
+        isMyTurn = true;
+        playerMaxMana = Math.Min(10, playerMaxMana + 1);
+        playerMana = playerMaxMana;
+        
+        if (playerDeckSize > 0)
+        {
+            playerDeckSize--;
+            var newCard = new Card 
+            { 
+                Id = Random.Shared.Next(100, 999), 
+                Name = $"Carta {Random.Shared.Next(1, 20)}", 
+                Description = "Uma nova carta", 
+                ManaCost = Random.Shared.Next(1, 6), 
+                Attack = Random.Shared.Next(1, 5), 
+                Health = Random.Shared.Next(1, 5), 
+                Type = CardType.Creature 
+            };
+            playerHand.Add(newCard);
+            AddMessage($"📜 Você comprou: {newCard.Name}");
+        }
+        
+        AddMessage($"✨ Seu turno! Mana: {playerMana}/{playerMaxMana}");
+        StateHasChanged();
+    }
+
+    private void AddMessage(string message)
+    {
+        gameMessages.Add($"[{DateTime.Now:HH:mm:ss}] {message}");
+        if (gameMessages.Count > 20)
+        {
+            gameMessages.RemoveAt(0);
+        }
+    }
+}
+
+<style>
+    .game-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        max-width: 1200px;
+        margin: 0 auto;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        box-sizing: border-box;
+    }
+
+    .opponent-area {
+        flex: 1;
+        padding: 20px;
+        border-bottom: 2px solid #444;
+    }
+
+    .center-area {
+        padding: 12px 20px;
+        background: rgba(0,0,0,0.3);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        min-height: 100px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .game-instructions {
+        background: linear-gradient(45deg, #3498db, #2ecc71);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        font-weight: bold;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        text-align: center;
+        width: 100%;
+        max-width: 450px;
+        font-size: 0.9rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(45deg, #e74c3c, #c0392b);
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        min-width: 140px;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+
+    .waiting {
+        color: #f39c12;
+        font-size: 1.2em;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+
+    .player-area {
+        flex: 1;
+        padding: 20px;
+        border-top: 2px solid #444;
+    }
+
+    .player-info {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 10px;
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+
+    .player-info .health {
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .player-info .health:hover {
+        transform: scale(1.1);
+        background: rgba(255,255,255,0.1);
+        border-radius: 5px;
+        padding: 5px;
+    }
+
+    .battlefield {
+        min-height: 120px;
+        border: 2px dashed rgba(255,255,255,0.3);
+        border-radius: 8px;
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin: 10px 0;
+    }
+
+    .hand {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .card {
+        width: 120px;
+        height: 160px;
+        background: linear-gradient(145deg, #2c3e50, #34495e);
+        border: 2px solid #3498db;
+        border-radius: 8px;
+        padding: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .card:hover {
+        transform: translateY(-5px) scale(1.05);
+        box-shadow: 0 12px 24px rgba(52, 152, 219, 0.4);
+        border-color: #ffd700;
+        z-index: 10;
+    }
+
+    .card.playable {
+        border-color: #2ecc71;
+        box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+    }
+
+    .card.unplayable {
+        opacity: 0.5;
+        cursor: not-allowed;
+        border-color: #e74c3c;
+    }
+
+    .card.unplayable:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .card.can-attack {
+        border-color: #f39c12;
+        box-shadow: 0 0 15px rgba(243, 156, 18, 0.6);
+    }
+
+    .card.selected {
+        border-color: #e74c3c;
+        box-shadow: 0 0 20px rgba(231, 76, 60, 0.8);
+        transform: translateY(-3px);
+    }
+
+    .creature-card {
+        height: 100px;
+    }
+
+    .hand-card {
+        height: 160px;
+    }
+
+    .card.selected {
+        border-color: #f39c12;
+        box-shadow: 0 0 15px rgba(243, 156, 18, 0.6);
+    }
+
+    .card.unplayable {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .card.unplayable:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .opponent-card {
+        border-color: #e74c3c;
+    }
+
+    .player-card {
+        border-color: #27ae60;
+    }
+
+    .card-mana {
+        position: absolute;
+        top: -5px;
+        left: -5px;
+        background: #9b59b6;
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9em;
+    }
+
+    .card-name {
+        font-weight: bold;
+        font-size: 0.9em;
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    .card-description {
+        font-size: 0.7em;
+        text-align: center;
+        opacity: 0.8;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .card-stats {
+        background: rgba(0,0,0,0.7);
+        padding: 4px 8px;
+        border-radius: 4px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 0.9em;
+    }
+
+    .empty-field, .empty-hand {
+        color: rgba(255,255,255,0.5);
+        font-style: italic;
+        text-align: center;
+        padding: 20px;
+    }
+
+    .turn-indicator {
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+
+    .waiting {
+        color: #f39c12;
+    }
+
+    .game-log {
+        width: 90%;
+        max-width: 500px;
+        min-height: 100px;
+        height: 150px;
+        max-height: 200px;
+        overflow-y: auto;
+        background: rgba(0,0,0,0.85);
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 0.8em;
+        border: 2px solid #3498db;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        margin: 8px auto;
+        box-sizing: border-box;
+    }
+
+    .log-message {
+        margin-bottom: 3px;
+        padding: 6px 10px;
+        background: rgba(255,255,255,0.12);
+        border-radius: 4px;
+        border-left: 3px solid #3498db;
+        opacity: 0.95;
+        color: #ecf0f1;
+        line-height: 1.4;
+        word-wrap: break-word;
+        font-size: 0.8em;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background-color 0.2s;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+    }
+</style>
